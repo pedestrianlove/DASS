@@ -1,0 +1,142 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dass
+      POSTGRES_USER: dass
+      POSTGRES_PASSWORD: dass
+    volumes:
+      - dass-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dass -d dass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: postgres
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: sqs
+      DEBUG: "0"
+      PERSISTENCE: "1"
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./infra/localstack/init:/etc/localstack/init/ready.d
+      - dass-localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:4566/_localstack/health | grep -qE '\"sqs\":\\s*\"(running|available)\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: localstack
+
+  api-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      DASS_DATABASE_URL: ${DASS_DATABASE_URL:-postgresql+psycopg://dass:dass@postgres:5432/dass}
+      DASS_SQS_ENDPOINT_URL: ${DASS_SQS_ENDPOINT_URL:-http://localstack:4566}
+      DASS_WORKER_ID: ${DASS_WORKER_ID:-api-server}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: api-server
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.scheduler
+    env_file:
+      - .env
+    environment:
+      DASS_DATABASE_URL: ${DASS_DATABASE_URL:-postgresql+psycopg://dass:dass@postgres:5432/dass}
+      DASS_SQS_ENDPOINT_URL: ${DASS_SQS_ENDPOINT_URL:-http://localstack:4566}
+      DASS_WORKER_ID: ${DASS_WORKER_ID:-scheduler}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: scheduler
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    env_file:
+      - .env
+    environment:
+      DASS_DATABASE_URL: ${DASS_DATABASE_URL:-postgresql+psycopg://dass:dass@postgres:5432/dass}
+      DASS_SQS_ENDPOINT_URL: ${DASS_SQS_ENDPOINT_URL:-http://localstack:4566}
+      DASS_WORKER_ID: ${DASS_WORKER_ID:-worker}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: worker
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        DASS_BACKEND_URL: ${DASS_BACKEND_URL:-http://api-server:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-server:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - dass-net
+    labels:
+      com.dass.project: dass
+      com.dass.service: frontend
+
+volumes:
+  dass-postgres-data:
+  dass-localstack-data:
+
+networks:
+  dass-net:
+    driver: bridge

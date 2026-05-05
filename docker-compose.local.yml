@@ -1,0 +1,34 @@
+services:
+  api-server:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    environment:
+      DASS_LOG_LEVEL: DEBUG
+
+  scheduler:
+    command: python -m app.cli scheduler
+    volumes:
+      - ./backend:/app
+    environment:
+      DASS_LOG_LEVEL: DEBUG
+
+  worker:
+    command: python -m app.cli worker
+    volumes:
+      - ./backend:/app
+    environment:
+      DASS_LOG_LEVEL: DEBUG
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        DASS_BACKEND_URL: ${DASS_BACKEND_URL:-http://api-server:8000}
+      target: dev
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
