@@ -5,6 +5,8 @@ import logging
 import sys
 import time
 
+from uuid import uuid4
+
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import SessionLocal
