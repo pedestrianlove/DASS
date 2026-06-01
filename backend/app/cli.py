@@ -32,6 +32,29 @@ def run_scheduler() -> None:
     """啟動 Scheduler 主迴圈：dispatch due jobs + recover orphans。"""
     settings = get_settings()
     configure_logging(level=settings.log_level)
+    queue_client = get_scheduled_queue_client()
+    lock_engine = create_engine(settings.database_url, pool_size=1, max_overflow=0)
+    LOCK_KEY = 114514
+
+    with lock_engine.connect() as lock_conn:
+        service = SchedulerService(
+            SessionLocal, queue_client, settings.worker_visibility_timeout_seconds
+        )
+        while True:
+            is_leader = lock_conn.execute(
+                text("SELECT pg_try_advisory_lock(:key)"), {"key": LOCK_KEY}
+            ).scalar()
+            if is_leader:
+                logger.info("[LEADER] Running scheduler cycle")
+                try:
+                    service.sync_jobs()
+                    service.recover_orphans()
+                    service.dispatch_due_jobs()
+                except Exception as e:
+                    logger.error(f"[LEADER]Scheduler cycle failed: {e}")
+            else:
+                logger.debug("[STANDBY] Waiting for leader lock...")
+            time.sleep(settings.scheduler_interval_seconds)
 
     normal_queue = get_normal_queue_client()
     scheduled_queue = get_scheduled_queue_client()
@@ -79,6 +102,7 @@ def run_autoscaler() -> None:
 
 import concurrent.futures
 
+
 def run_worker() -> None:
     """啟動 Worker 主迴圈：支援 normal > scheduled > retry queue 優先、平行處理 containers。"""
     settings = get_settings()
@@ -97,7 +121,7 @@ def run_worker() -> None:
         (scheduled_queue, "scheduled", 1),
         (retry_queue, "retry", 1),
     ]
-    
+
     # max_workers = getattr(settings, "worker_concurrency", 5)  # 原預設值
     max_workers = CONTAINERS_PER_VM  # 目前寫死，一個 worker VM 兩個 container
 
@@ -194,10 +218,12 @@ def run_worker() -> None:
 
                 messages = []
                 source_queue = None
-                
+
                 # 輪轉起點：每個 cycle 換一個隊列當最高優先級
-                rotated_chain = queue_chain[cycle_count % 3:] + queue_chain[:cycle_count % 3]
-                
+                rotated_chain = (
+                    queue_chain[cycle_count % 3 :] + queue_chain[: cycle_count % 3]
+                )
+
                 for q, _name, wait in rotated_chain:
                     messages = q.receive_tasks(
                         max_messages=available_slots,
@@ -206,7 +232,7 @@ def run_worker() -> None:
                     if messages:
                         source_queue = q
                         break
-                
+
                 cycle_count += 1
 
                 if not messages:
