@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from app.models.job import Job
 from app.models.task import Task
+from app.db.session import force_primary_session
 from app.repositories.job_repository import JobRepository
 from app.repositories.task_repository import TaskRepository
 
@@ -40,6 +41,24 @@ def _make_task(job_id: str, **overrides) -> Task:
     }
     kwargs.update(overrides)
     return Task(**kwargs)
+
+
+class _RefreshRequiresPrimarySession:
+    def __init__(self, previous_force_primary=None):
+        self.info = {}
+        if previous_force_primary is not None:
+            self.info["force_primary"] = previous_force_primary
+        self.refreshed = False
+
+    def add(self, obj):
+        self.obj = obj
+
+    def commit(self):
+        pass
+
+    def refresh(self, obj):
+        assert self.info.get("force_primary") is True
+        self.refreshed = True
 
 
 @pytest.fixture
@@ -126,6 +145,15 @@ class TestJobRepository:
         assert len(due) == 2
         assert job_normal.id in due_ids
         assert job_exact_now.id in due_ids
+
+    def test_create_job_forces_primary_for_refresh(self):
+        session = _RefreshRequiresPrimarySession()
+        repo = JobRepository(session)
+
+        repo.create(_make_job())
+
+        assert session.refreshed is True
+        assert "force_primary" not in session.info
 
 
 class TestTaskRepository:
@@ -283,3 +311,21 @@ class TestTaskRepository:
         assert updated.status == "final_failed"
         assert updated.locked_by is None
         assert updated.locked_until is None
+
+    def test_create_task_preserves_existing_force_primary_flag(self):
+        session = _RefreshRequiresPrimarySession(previous_force_primary=True)
+        repo = TaskRepository(session)
+
+        repo.create(_make_task(uuid4(), trigger_type="manual"))
+
+        assert session.refreshed is True
+        assert session.info["force_primary"] is True
+
+
+def test_force_primary_session_restores_previous_value():
+    session = _RefreshRequiresPrimarySession(previous_force_primary=False)
+
+    with force_primary_session(session):
+        assert session.info["force_primary"] is True
+
+    assert session.info["force_primary"] is False

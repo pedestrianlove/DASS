@@ -92,6 +92,115 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Kubernetes Deployment (Helm / MicroK8s)
+
+The repository also ships a working Helm deployment under `charts/meta-chart`.
+
+The verified MicroK8s path uses:
+
+- CloudNativePG for PostgreSQL
+- LocalStack for SQS
+- KEDA for worker autoscaling from SQS queue depth
+- the existing `observability` namespace Grafana/Prometheus stack
+
+### Prerequisites
+
+Make sure these are already installed in your cluster:
+
+- `microk8s`
+- `helm` or `microk8s helm3`
+- CloudNativePG operator
+- KEDA operator
+- the MicroK8s observability stack
+
+The worker chart also expects at least one node labeled with Docker socket capability:
+
+```bash
+microk8s kubectl label node <node-name> dass.io/docker-sock=true --overwrite
+```
+
+### Deploy
+
+The MicroK8s override is:
+
+- `charts/meta-chart/values-microk8s.yaml`
+
+It currently enables:
+
+- `api-server` replicas = 2
+- `frontend` replicas = 2
+- CloudNativePG PostgreSQL instances = 2
+- KEDA worker autoscaling with `maxReplicas = 10`
+
+Deploy to a test namespace:
+
+```bash
+microk8s helm3 dependency build charts/meta-chart
+
+microk8s helm3 upgrade --install dass-test charts/meta-chart \
+  --namespace dass-test-jsl \
+  --create-namespace \
+  --values charts/meta-chart/values-microk8s.yaml
+```
+
+### Verify
+
+```bash
+microk8s kubectl get pods -n dass-test-jsl
+microk8s kubectl get svc -n dass-test-jsl
+microk8s kubectl get cluster.postgresql.cnpg.io -n dass-test-jsl
+microk8s kubectl get scaledobject,hpa -n dass-test-jsl
+```
+
+You should see:
+
+- `api-server` and `frontend` with 2 replicas each
+- a CloudNativePG `Cluster` named `postgres`
+- a KEDA `ScaledObject` named `worker`
+
+### Access The App
+
+```bash
+microk8s kubectl port-forward -n dass-test-jsl svc/frontend 3000:3000
+microk8s kubectl port-forward -n dass-test-jsl svc/api-server 8000:8000
+```
+
+Then open:
+
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+
+### Access Grafana
+
+The application dashboard is loaded into the existing Grafana in the `observability` namespace.
+
+```bash
+microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80
+```
+
+Login with:
+
+- username: `admin`
+- password: `prom-operator`
+
+Then open the dashboard:
+
+- `http://localhost:3000/d/dass-overview/dass-c2b7-overview`
+
+### Notes
+
+- The MicroK8s override is configured to use `ceph-rbd` for PostgreSQL and LocalStack persistence.
+- If you want to move PostgreSQL storage to `ceph-rbd`, the external Ceph integration must be working first.
+- The worker does not use CPU HPA. It scales via KEDA from the SQS queue length.
+- If a node is already cordoned cluster-wide, the chart does not need extra hostname-specific scheduling rules for that node.
+
+### Uninstall
+
+```bash
+microk8s helm3 uninstall dass-test -n dass-test-jsl
+```
+
 ## Viewing Logs
 
 ```bash

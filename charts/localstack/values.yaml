@@ -22,7 +22,7 @@ persistence:
   accessModes:
     - ReadWriteOnce
   size: 5Gi
-  storageClassName: microk8s-hostpath
+  storageClassName: ceph-rbd
 
 resources: {}
 podAnnotations: {}

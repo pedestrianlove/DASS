@@ -62,7 +62,7 @@ postgres:
   instances: 1
   storage:
     size: 10Gi
-    storageClassName: microk8s-hostpath
+    storageClassName: ceph-rbd
   primaryServiceName: postgres
   replicaServiceName: postgres-replica
   monitoring:
@@ -75,7 +75,7 @@ localstack:
   enabled: true
   fullnameOverride: localstack
   persistence:
-    storageClassName: microk8s-hostpath
+    storageClassName: ceph-rbd
 
 observability:
   nodeSelector: {}

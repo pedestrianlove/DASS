@@ -1,15 +1,28 @@
 postgres:
   instances: 2
   storage:
-    storageClassName: microk8s-hostpath
+    storageClassName: ceph-rbd
 
 localstack:
   persistence:
-    storageClassName: microk8s-hostpath
+    storageClassName: ceph-rbd
 
 api-server:
-  replicaCount: 2
   spreadAcrossNodes: true
+  service:
+    type: LoadBalancer
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
 
 worker:
   resources:
@@ -39,5 +52,18 @@ worker:
                   - "true"
 
 frontend:
-  replicaCount: 2
   spreadAcrossNodes: true
+  service:
+    type: LoadBalancer
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70

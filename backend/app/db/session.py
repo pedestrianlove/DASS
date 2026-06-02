@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, Select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -86,3 +88,16 @@ SessionLocal = sessionmaker(
     autocommit=False, 
     expire_on_commit=False
 )
+
+
+@contextmanager
+def force_primary_session(db: Session):
+    previous = db.info.get("force_primary")
+    db.info["force_primary"] = True
+    try:
+        yield
+    finally:
+        if previous is None:
+            db.info.pop("force_primary", None)
+        else:
+            db.info["force_primary"] = previous
