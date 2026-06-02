@@ -1,0 +1,69 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "postgres.fullname" . }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.instances }}
+  {{- with .Values.imageName }}
+  imageName: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.auth.database | quote }}
+      owner: {{ .Values.auth.username | quote }}
+      secret:
+        name: {{ include "postgres.appSecretName" . }}
+  storage:
+    size: {{ .Values.storage.size | quote }}
+    {{- with .Values.storage.storageClassName }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  {{- with .Values.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if or .Values.nodeSelector .Values.affinity .Values.tolerations }}
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: preferred
+    topologyKey: kubernetes.io/hostname
+    {{- with .Values.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.affinity.nodeAffinity }}
+    nodeAffinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.affinity.additionalPodAffinity }}
+    additionalPodAffinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.affinity.additionalPodAntiAffinity }}
+    additionalPodAntiAffinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  managed:
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: {{ .Values.primaryServiceName }}
+        {{- if gt (int .Values.instances) 1 }}
+        - selectorType: ro
+          serviceTemplate:
+            metadata:
+              name: {{ .Values.replicaServiceName }}
+        {{- end }}

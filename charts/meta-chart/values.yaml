@@ -1,0 +1,105 @@
+global:
+  app:
+    environment: local
+    logLevel: INFO
+    databaseEcho: "false"
+    queueBackend: sqs
+    queueName: dass-tasks
+    queueNameNormal: dass-tasks-normal
+    queueNameScheduled: dass-tasks-scheduled
+    queueNameRetry: dass-tasks-retry
+    awsRegion: us-east-1
+    awsAccessKeyId: dass
+    awsSecretAccessKey: dass
+    schedulerIntervalSeconds: "5"
+    schedulerLockedTaskScanSeconds: "5"
+    workerVisibilityTimeoutSeconds: "30"
+    autoscalerIntervalSeconds: "30"
+    httpRequestTimeoutSeconds: "30"
+    shellExecutionEnabled: "true"
+    corsOrigins: http://localhost:3000,http://127.0.0.1:3000
+  frontend:
+    backendUrl: http://api-server:8000
+  observability:
+    enabled: true
+    releaseLabel: kube-prom-stack
+
+api-server:
+  enabled: true
+  fullnameOverride: api-server
+  image:
+    repository: dass/api-server
+    tag: latest
+
+scheduler:
+  enabled: true
+  fullnameOverride: scheduler
+  image:
+    repository: dass/scheduler
+    tag: latest
+
+worker:
+  enabled: true
+  fullnameOverride: worker
+  image:
+    repository: dass/worker
+    tag: latest
+
+frontend:
+  enabled: true
+  fullnameOverride: frontend
+  image:
+    repository: dass/frontend
+    tag: latest
+
+postgres:
+  enabled: true
+  fullnameOverride: postgres
+  auth:
+    database: dass
+    username: dass
+    password: dass
+  instances: 1
+  storage:
+    size: 10Gi
+    storageClassName: microk8s-hostpath
+  primaryServiceName: postgres
+  replicaServiceName: postgres-replica
+  monitoring:
+    podMonitor:
+      enabled: true
+      interval: 15s
+      releaseLabel: kube-prom-stack
+
+localstack:
+  enabled: true
+  fullnameOverride: localstack
+  persistence:
+    storageClassName: microk8s-hostpath
+
+observability:
+  nodeSelector: {}
+  affinity: {}
+  grafanaDashboard:
+    enabled: true
+  postgresExporter:
+    enabled: true
+    image:
+      repository: prometheuscommunity/postgres-exporter
+      tag: v0.15.0
+      pullPolicy: IfNotPresent
+    service:
+      port: 9187
+    serviceMonitor:
+      interval: 15s
+  sqsExporter:
+    enabled: true
+    image:
+      repository: dass/sqs-exporter
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      port: 9100
+    intervalSeconds: "5"
+    serviceMonitor:
+      interval: 15s

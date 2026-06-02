@@ -1,0 +1,76 @@
+replicaCount: 1
+
+image:
+  repository: dass/scheduler
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: scheduler
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+containerPorts: []
+
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8001
+  targetPort: http
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+probes:
+  liveness: null
+  readiness: null
+  startup: null
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: null
+
+volumes: []
+volumeMounts: []
+
+sharedEnv:
+  configMapName: ""
+  secretName: ""
+
+env:
+  DASS_WORKER_ID: scheduler
+
+extraEnv: []
+
+command: []
+args: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

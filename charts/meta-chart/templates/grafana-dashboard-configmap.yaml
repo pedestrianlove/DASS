@@ -1,0 +1,13 @@
+{{- if and .Values.global.observability.enabled .Values.observability.grafanaDashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-grafana-dashboard-dass" .Release.Name }}
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+    release: {{ .Values.global.observability.releaseLabel | quote }}
+data:
+  dass-overview.json: |
+{{ .Files.Get "files/dass-overview.json" | indent 4 }}
+{{- end }}

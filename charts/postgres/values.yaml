@@ -1,0 +1,36 @@
+fullnameOverride: postgres
+
+imageName: ""
+
+imagePullSecrets: []
+nameOverride: ""
+
+auth:
+  database: dass
+  username: dass
+  password: dass
+
+instances: 1
+
+storage:
+  size: 10Gi
+  storageClassName: microk8s-hostpath
+
+resources: {}
+
+primaryServiceName: postgres
+replicaServiceName: postgres-replica
+
+monitoring:
+  podMonitor:
+    enabled: true
+    interval: 15s
+    releaseLabel: kube-prom-stack
+  customQueries:
+    enabled: false
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

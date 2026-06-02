@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "localstack.fullname" . }}
+  labels:
+    {{- include "localstack.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "localstack.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/init: {{ .Files.Get "files/01-create-queue.sh" | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "localstack.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: localstack
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: edge
+              containerPort: 4566
+              protocol: TCP
+          env:
+            {{- range $name, $value := .Values.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fs http://localhost:4566/_localstack/health | grep -qE '"sqs":\s*"(running|available)"'
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fs http://localhost:4566/_localstack/health | grep -qE '"sqs":\s*"(running|available)"'
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fs http://localhost:4566/_localstack/health | grep -qE '"sqs":\s*"(running|available)"'
+            failureThreshold: 30
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: init
+              mountPath: /etc/localstack/init/ready.d
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: /var/lib/localstack
+            {{- end }}
+      volumes:
+        - name: init
+          configMap:
+            name: {{ include "localstack.fullname" . }}-init
+            defaultMode: 0755
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "localstack.fullname" . }}-data
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

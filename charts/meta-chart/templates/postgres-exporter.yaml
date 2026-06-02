@@ -1,0 +1,96 @@
+{{- if and .Values.global.observability.enabled .Values.observability.postgresExporter.enabled .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meta-chart.postgresExporterName" . }}
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "meta-chart.postgresExporterName" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "meta-chart.postgresExporterName" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: postgres-exporter
+    spec:
+      {{- with .Values.observability.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.observability.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres-exporter
+          image: "{{ .Values.observability.postgresExporter.image.repository }}:{{ .Values.observability.postgresExporter.image.tag }}"
+          imagePullPolicy: {{ .Values.observability.postgresExporter.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.observability.postgresExporter.service.port }}
+              protocol: TCP
+          env:
+            - name: DATA_SOURCE_NAME
+              value: {{ printf "postgresql://%s:%s@%s:5432/%s?sslmode=disable" .Values.postgres.auth.username .Values.postgres.auth.password (include "meta-chart.postgresHost" .) .Values.postgres.auth.database | quote }}
+            - name: PG_EXPORTER_EXTEND_QUERY_PATH
+              value: /custom-queries/queries.yaml
+            - name: PG_EXPORTER_DISABLE_DEFAULT_METRICS
+              value: "false"
+          volumeMounts:
+            - name: queries
+              mountPath: /custom-queries
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: queries
+          configMap:
+            name: {{ include "meta-chart.postgresExporterName" . }}-queries
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meta-chart.postgresExporterName" . }}
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres-exporter
+spec:
+  ports:
+    - name: metrics
+      port: {{ .Values.observability.postgresExporter.service.port }}
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: {{ include "meta-chart.postgresExporterName" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "meta-chart.postgresExporterName" . }}
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+    release: {{ .Values.global.observability.releaseLabel | quote }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.observability.postgresExporter.serviceMonitor.interval }}
+{{- end }}

@@ -1,0 +1,43 @@
+postgres:
+  instances: 2
+  storage:
+    storageClassName: microk8s-hostpath
+
+localstack:
+  persistence:
+    storageClassName: microk8s-hostpath
+
+api-server:
+  replicaCount: 2
+  spreadAcrossNodes: true
+
+worker:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  autoscaling:
+    enabled: false
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 10
+    queueLength: "5"
+    awsRegion: us-east-1
+    awsEndpoint: ""
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: dass.io/docker-sock
+                operator: In
+                values:
+                  - "true"
+
+frontend:
+  replicaCount: 2
+  spreadAcrossNodes: true

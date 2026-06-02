@@ -1,0 +1,31 @@
+apiVersion: v2
+name: meta-chart
+description: Umbrella Helm chart for DASS
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+dependencies:
+  - name: api-server
+    version: "0.1.0"
+    repository: "file://../api-server"
+    condition: api-server.enabled
+  - name: scheduler
+    version: "0.1.0"
+    repository: "file://../scheduler"
+    condition: scheduler.enabled
+  - name: worker
+    version: "0.1.0"
+    repository: "file://../worker"
+    condition: worker.enabled
+  - name: frontend
+    version: "0.1.0"
+    repository: "file://../frontend"
+    condition: frontend.enabled
+  - name: postgres
+    version: "0.1.0"
+    repository: "file://../postgres"
+    condition: postgres.enabled
+  - name: localstack
+    version: "0.1.0"
+    repository: "file://../localstack"
+    condition: localstack.enabled

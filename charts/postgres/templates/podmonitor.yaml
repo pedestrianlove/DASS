@@ -1,0 +1,16 @@
+{{- if .Values.monitoring.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "postgres.fullname" . }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+    release: {{ .Values.monitoring.podMonitor.releaseLabel | quote }}
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ include "postgres.fullname" . }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.podMonitor.interval }}
+{{- end }}

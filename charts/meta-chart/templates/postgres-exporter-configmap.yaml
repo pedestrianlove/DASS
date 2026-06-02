@@ -1,0 +1,11 @@
+{{- if and .Values.global.observability.enabled .Values.observability.postgresExporter.enabled .Values.postgres.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meta-chart.postgresExporterName" . }}-queries
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+data:
+  queries.yaml: |
+{{ .Files.Get "files/postgres-exporter-queries.yaml" | indent 4 }}
+{{- end }}

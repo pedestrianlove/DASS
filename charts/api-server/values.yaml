@@ -1,0 +1,91 @@
+replicaCount: 1
+spreadAcrossNodes: false
+
+image:
+  repository: dass/api-server
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: api-server
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+containerPorts:
+  - name: http
+    containerPort: 8000
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8000
+  targetPort: http
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+probes:
+  liveness:
+    httpGet:
+      path: /health
+      port: http
+  readiness:
+    httpGet:
+      path: /health
+      port: http
+  startup:
+    httpGet:
+      path: /health
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: null
+
+volumes: []
+volumeMounts: []
+
+sharedEnv:
+  configMapName: ""
+  secretName: ""
+
+env:
+  DASS_WORKER_ID: api-server
+
+extraEnv: []
+
+command: []
+args: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

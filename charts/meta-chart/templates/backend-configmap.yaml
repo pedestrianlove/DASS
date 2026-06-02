@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meta-chart.backendConfigName" . }}
+  labels:
+    {{- include "meta-chart.labels" . | nindent 4 }}
+data:
+  DASS_ENVIRONMENT: {{ .Values.global.app.environment | quote }}
+  DASS_LOG_LEVEL: {{ .Values.global.app.logLevel | quote }}
+  DASS_DATABASE_ECHO: {{ .Values.global.app.databaseEcho | quote }}
+  DASS_QUEUE_BACKEND: {{ .Values.global.app.queueBackend | quote }}
+  DASS_QUEUE_NAME: {{ .Values.global.app.queueName | quote }}
+  DASS_QUEUE_NAME_NORMAL: {{ .Values.global.app.queueNameNormal | quote }}
+  DASS_QUEUE_NAME_SCHEDULED: {{ .Values.global.app.queueNameScheduled | quote }}
+  DASS_QUEUE_NAME_RETRY: {{ .Values.global.app.queueNameRetry | quote }}
+  DASS_QUEUE_URL: {{ printf "http://%s:4566/000000000000/%s" (include "meta-chart.localstackFqdn" .) .Values.global.app.queueName | quote }}
+  DASS_QUEUE_URL_NORMAL: {{ printf "http://%s:4566/000000000000/%s" (include "meta-chart.localstackFqdn" .) .Values.global.app.queueNameNormal | quote }}
+  DASS_QUEUE_URL_SCHEDULED: {{ printf "http://%s:4566/000000000000/%s" (include "meta-chart.localstackFqdn" .) .Values.global.app.queueNameScheduled | quote }}
+  DASS_QUEUE_URL_RETRY: {{ printf "http://%s:4566/000000000000/%s" (include "meta-chart.localstackFqdn" .) .Values.global.app.queueNameRetry | quote }}
+  DASS_AWS_REGION: {{ .Values.global.app.awsRegion | quote }}
+  DASS_SQS_ENDPOINT_URL: {{ printf "http://%s:4566" (include "meta-chart.localstackFqdn" .) | quote }}
+  DASS_SCHEDULER_INTERVAL_SECONDS: {{ .Values.global.app.schedulerIntervalSeconds | quote }}
+  DASS_SCHEDULER_LOCKED_TASK_SCAN_SECONDS: {{ .Values.global.app.schedulerLockedTaskScanSeconds | quote }}
+  DASS_WORKER_VISIBILITY_TIMEOUT_SECONDS: {{ .Values.global.app.workerVisibilityTimeoutSeconds | quote }}
+  DASS_AUTOSCALER_INTERVAL_SECONDS: {{ .Values.global.app.autoscalerIntervalSeconds | quote }}
+  DASS_HTTP_REQUEST_TIMEOUT_SECONDS: {{ .Values.global.app.httpRequestTimeoutSeconds | quote }}
+  DASS_SHELL_EXECUTION_ENABLED: {{ .Values.global.app.shellExecutionEnabled | quote }}
+  DASS_CORS_ORIGINS: {{ .Values.global.app.corsOrigins | quote }}

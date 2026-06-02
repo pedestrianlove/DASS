@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "localstack.fullname" . }}-init
+  labels:
+    {{- include "localstack.labels" . | nindent 4 }}
+data:
+  01-create-queue.sh: |
+{{ .Files.Get "files/01-create-queue.sh" | indent 4 }}

@@ -1,0 +1,32 @@
+fullnameOverride: localstack
+
+image:
+  repository: localstack/localstack
+  tag: "3"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 4566
+
+env:
+  SERVICES: sqs
+  DEBUG: "0"
+  PERSISTENCE: "1"
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  storageClassName: microk8s-hostpath
+
+resources: {}
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,94 @@
+replicaCount: 1
+
+image:
+  repository: dass/worker
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: worker
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+containerPorts: []
+
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8002
+  targetPort: http
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+probes:
+  liveness: null
+  readiness: null
+  startup: null
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: null
+
+keda:
+  enabled: false
+  pollingInterval: 5
+  cooldownPeriod: 120
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  queueURLFromEnv: DASS_QUEUE_URL_NORMAL
+  queueLength: "5"
+  awsRegion: us-east-1
+  awsEndpoint: ""
+
+volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+      type: Socket
+
+volumeMounts:
+  - name: docker-sock
+    mountPath: /var/run/docker.sock
+
+sharedEnv:
+  configMapName: ""
+  secretName: ""
+
+env:
+  DASS_WORKER_ID: worker
+
+extraEnv: []
+
+command: []
+args: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

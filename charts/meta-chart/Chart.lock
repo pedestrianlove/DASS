@@ -1,0 +1,21 @@
+dependencies:
+- name: api-server
+  repository: file://../api-server
+  version: 0.1.0
+- name: scheduler
+  repository: file://../scheduler
+  version: 0.1.0
+- name: worker
+  repository: file://../worker
+  version: 0.1.0
+- name: frontend
+  repository: file://../frontend
+  version: 0.1.0
+- name: postgres
+  repository: file://../postgres
+  version: 0.1.0
+- name: localstack
+  repository: file://../localstack
+  version: 0.1.0
+digest: sha256:99a443876cd84525a83d93bf6ead773d70d15d799d053d26985cb717cfc53097
+generated: "2026-06-02T16:00:23.55458848+08:00"

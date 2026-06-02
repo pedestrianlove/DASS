@@ -1,0 +1,16 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ include "worker.fullname" . }}-sqs-auth
+  labels:
+    {{- include "worker.labels" . | nindent 4 }}
+spec:
+  secretTargetRef:
+    - parameter: awsAccessKeyID
+      name: {{ .Values.sharedEnv.secretName | default (printf "%s-backend-secret" .Release.Name) }}
+      key: DASS_AWS_ACCESS_KEY_ID
+    - parameter: awsSecretAccessKey
+      name: {{ .Values.sharedEnv.secretName | default (printf "%s-backend-secret" .Release.Name) }}
+      key: DASS_AWS_SECRET_ACCESS_KEY
+{{- end }}

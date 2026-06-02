@@ -1,8 +1,9 @@
-"""SQS + Worker fleet exporter for LocalStack + Docker.
+"""SQS + Worker fleet exporter for LocalStack, Kubernetes, and Docker.
 
 Polls every N seconds:
-- LocalStack SQS queue attributes → dass_sqs_messages_* gauges
-- Docker daemon for worker containers → dass_workers_total / _autoscaled
+- LocalStack SQS queue attributes -> dass_sqs_messages_* gauges
+- Kubernetes worker pods when running in-cluster
+- Docker daemon for worker containers as a fallback for local compose
 
 Metrics exposed at :9100/metrics.
 """
@@ -16,6 +17,9 @@ import boto3
 import botocore.exceptions
 import docker
 from docker.errors import DockerException
+from kubernetes import client as k8s_client
+from kubernetes import config as k8s_config
+from kubernetes.client import ApiException
 from prometheus_client import Counter, Gauge, start_http_server
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -60,6 +64,17 @@ def make_docker_client():
         return None
 
 
+def make_kubernetes_client():
+    if not os.environ.get("KUBERNETES_SERVICE_HOST"):
+        return None
+    try:
+        k8s_config.load_incluster_config()
+        return k8s_client.CoreV1Api()
+    except Exception as e:
+        log.warning("Kubernetes API not reachable: %s — falling back to Docker", e)
+        return None
+
+
 def collect_sqs(client) -> None:
     for q in QUEUES:
         try:
@@ -84,13 +99,45 @@ def collect_sqs(client) -> None:
             sqs_errors.labels(queue=q).inc()
 
 
-def collect_workers(client) -> None:
-    if client is None:
+def collect_workers(kube_client, docker_client) -> None:
+    if kube_client is not None:
+        namespace = os.environ.get("DASS_POD_NAMESPACE", "default")
+        label_selector = os.environ.get(
+            "DASS_WORKER_LABEL_SELECTOR",
+            "app.kubernetes.io/name=worker",
+        )
+        autoscaled_selector = os.environ.get("DASS_AUTOSCALED_WORKER_LABEL_SELECTOR", "")
+        try:
+            worker_pods = kube_client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=label_selector,
+            ).items
+            running_workers = [pod for pod in worker_pods if pod.status.phase == "Running"]
+            workers_total.set(len(running_workers))
+
+            if autoscaled_selector:
+                autoscaled_pods = kube_client.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=autoscaled_selector,
+                ).items
+                running_autoscaled = [pod for pod in autoscaled_pods if pod.status.phase == "Running"]
+                workers_autoscaled.set(len(running_autoscaled))
+            else:
+                workers_autoscaled.set(0)
+            return
+        except ApiException:
+            log.exception("collect_workers failed via Kubernetes API")
+            worker_errors.inc()
+        except Exception:
+            log.exception("collect_workers failed via Kubernetes API")
+            worker_errors.inc()
+
+    if docker_client is None:
         workers_total.set(0)
         workers_autoscaled.set(0)
         return
     try:
-        all_workers = client.containers.list(
+        all_workers = docker_client.containers.list(
             filters={"label": ["com.dass.project=dass", "com.dass.service=worker"]}
         )
         autoscaled = [c for c in all_workers if c.labels.get("com.dass.autoscaled") == "true"]
@@ -107,6 +154,7 @@ def main() -> None:
     log.info("exporter listening on :9100 interval=%.1fs", interval)
 
     sqs_client = make_sqs_client()
+    kubernetes_client = make_kubernetes_client()
     docker_client = make_docker_client()
 
     while True:
@@ -116,9 +164,10 @@ def main() -> None:
             log.exception("collect_sqs loop error — rebuilding client")
             sqs_client = make_sqs_client()
         try:
-            collect_workers(docker_client)
+            collect_workers(kubernetes_client, docker_client)
         except Exception:
-            log.exception("collect_workers loop error — rebuilding client")
+            log.exception("collect_workers loop error — rebuilding clients")
+            kubernetes_client = make_kubernetes_client()
             docker_client = make_docker_client()
         time.sleep(interval)
 
