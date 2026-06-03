@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dass-test
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pedestrianlove/DASS.git
+    targetRevision: main
+    path: charts/meta-chart
+    helm:
+      releaseName: dass-test
+      valueFiles:
+        - values-microk8s.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dass-test-jsl
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - CreateNamespace=true
