@@ -448,3 +448,17 @@ Note: this minimal setup skips `postgres-replica`. With `DASS_REPLICA_DATABASE_U
 - Workers claim tasks atomically and report results back to PostgreSQL.
 - The autoscaler watches queue depth and spawns/reaps extra workers — see the Autoscaling section above.
 - Shell execution is supported for local and internal use, but it is dangerous in production and should be restricted carefully.
+
+## Endpoint
+### Services
+- Backend: `http://192.168.20.21`
+- Frontend: `http://192.168.20.22`
+
+### Infra
+- ArgoCD: `https://192.168.20.23`
+  - Username: `admin`
+  - Password: `DmVRg2YV57cnYdhL`
+- Grafana: `http://192.168.20.24`
+  - Username: `admin`
+  - Password: `prom-operator`
+
