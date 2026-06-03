@@ -1,3 +1,7 @@
+global:
+  frontend:
+    backendUrl: http://api-server:80
+
 postgres:
   instances: 2
   storage:
@@ -13,6 +17,7 @@ api-server:
     enabled: true
   service:
     type: LoadBalancer
+    port: 80
   resources:
     requests:
       cpu: 250m
@@ -59,6 +64,7 @@ frontend:
     enabled: true
   service:
     type: LoadBalancer
+    port: 80
   resources:
     requests:
       cpu: 100m

@@ -12,7 +12,9 @@ spec:
       maxSurge: 0
       maxUnavailable: 1
   {{- end }}
-  {{- if and (not .Values.autoscaling.enabled) (not .Values.rollout.enabled) }}
+  {{- if .Values.rollout.enabled }}
+  replicas: 0
+  {{- else if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
