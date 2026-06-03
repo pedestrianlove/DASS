@@ -9,6 +9,8 @@ localstack:
 
 api-server:
   spreadAcrossNodes: true
+  rollout:
+    enabled: true
   service:
     type: LoadBalancer
   resources:
@@ -53,6 +55,8 @@ worker:
 
 frontend:
   spreadAcrossNodes: true
+  rollout:
+    enabled: true
   service:
     type: LoadBalancer
   resources:
