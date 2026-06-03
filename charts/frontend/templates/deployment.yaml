@@ -43,6 +43,8 @@ spec:
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:

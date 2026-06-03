@@ -40,6 +40,16 @@ def health():
         db.execute(text("SELECT 1"))
     return {"status": "ok", "service": "dass"}
 
+
+@app.get("/livez")
+def livez():
+    return {"status": "ok", "service": "dass"}
+
+
+@app.get("/readyz")
+def readyz():
+    return {"status": "ok", "service": "dass"}
+
 @app.get("/metrics")
 def metrics():
     """回傳 Job 和 Task 的統計數字。

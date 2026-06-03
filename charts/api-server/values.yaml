@@ -49,15 +49,15 @@ resources: {}
 probes:
   liveness:
     httpGet:
-      path: /health
+      path: /livez
       port: http
   readiness:
     httpGet:
-      path: /health
+      path: /readyz
       port: http
   startup:
     httpGet:
-      path: /health
+      path: /livez
       port: http
     failureThreshold: 30
     periodSeconds: 5

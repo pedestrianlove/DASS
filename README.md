@@ -100,6 +100,8 @@ The verified MicroK8s path uses:
 
 - CloudNativePG for PostgreSQL
 - LocalStack for SQS
+- MetalLB for external `LoadBalancer` IPs
+- metrics-server for CPU HPA
 - KEDA for worker autoscaling from SQS queue depth
 - the existing `observability` namespace Grafana/Prometheus stack
 
@@ -109,9 +111,23 @@ Make sure these are already installed in your cluster:
 
 - `microk8s`
 - `helm` or `microk8s helm3`
+- MicroK8s addons: `dns`, `metrics-server`, `ingress`, `metallb`
 - CloudNativePG operator
 - KEDA operator
 - the MicroK8s observability stack
+
+If you want persistent `ceph-rbd` storage, you also need a working Ceph backend for MicroK8s. Two common options are:
+
+- `microceph` on the same lab/cluster footprint
+- an external Ceph cluster connected into MicroK8s
+
+For MetalLB, allocate a free IP range on the same L2 network as your nodes. Example:
+
+```bash
+microk8s enable metallb:192.168.20.240-192.168.20.250
+```
+
+For HPA, `metrics-server` must be healthy enough to return pod CPU metrics. If `kubectl top pods` is failing, CPU HPAs will stay at `cpu: <unknown>` and only enforce `minReplicas`.
 
 The worker chart also expects at least one node labeled with Docker socket capability:
 
@@ -127,10 +143,11 @@ The MicroK8s override is:
 
 It currently enables:
 
-- `api-server` replicas = 2
-- `frontend` replicas = 2
+- `api-server` CPU HPA: min `2`, max `10`
+- `frontend` CPU HPA: min `2`, max `10`
 - CloudNativePG PostgreSQL instances = 2
 - KEDA worker autoscaling with `maxReplicas = 10`
+- `LoadBalancer` services for `api-server` and `frontend`
 
 Deploy to a test namespace:
 
@@ -159,6 +176,22 @@ You should see:
 - a KEDA `ScaledObject` named `worker`
 
 ### Access The App
+
+The current MicroK8s override exposes both services through MetalLB-backed `LoadBalancer` services.
+
+Check the assigned external IPs:
+
+```bash
+microk8s kubectl get svc -n dass-test-jsl api-server frontend
+```
+
+Example from the verified cluster:
+
+- Frontend: `http://192.168.20.22:3000`
+- API: `http://192.168.20.21:8000`
+- API docs: `http://192.168.20.21:8000/docs`
+
+If you still want a local-only path, port-forward works too:
 
 ```bash
 microk8s kubectl port-forward -n dass-test-jsl svc/frontend 3000:3000
@@ -191,7 +224,9 @@ Then open the dashboard:
 ### Notes
 
 - The MicroK8s override is configured to use `ceph-rbd` for PostgreSQL and LocalStack persistence.
-- If you want to move PostgreSQL storage to `ceph-rbd`, the external Ceph integration must be working first.
+- If you want to use `ceph-rbd`, `microceph` or external Ceph integration must be working first.
+- Verify Ceph before deploy by confirming the `ceph-rbd` StorageClass provisions a PVC successfully.
+- `api-server` and `frontend` use CPU HPA and therefore require healthy `metrics-server` data.
 - The worker does not use CPU HPA. It scales via KEDA from the SQS queue length.
 - If a node is already cordoned cluster-wide, the chart does not need extra hostname-specific scheduling rules for that node.
 
@@ -268,6 +303,18 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml down -v
 cd backend   # so the project .venv (with httpx) is used
 .venv/bin/python ../scripts/load_gen.py --count 10000 --concurrency 64 --trigger
 ```
+
+For the MicroK8s deployment, point it at the backend `LoadBalancer` IP:
+
+```bash
+uv run --project backend python scripts/load_gen.py \
+  --count 10000 \
+  --concurrency 64 \
+  --trigger \
+  --api http://192.168.20.21:8000
+```
+
+The stress tool intentionally disables HTTP keep-alive reuse so external `LoadBalancer` tests do not get polluted by stale pooled sockets being closed under the client.
 
 | Flag | Meaning |
 |------|---------|

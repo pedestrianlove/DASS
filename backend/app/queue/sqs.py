@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import boto3
+from botocore.config import Config
 
 from app.core.config import Settings
 from app.queue.base import QueueMessage
@@ -24,6 +25,12 @@ class SQSQueueClient:
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
             aws_session_token=settings.aws_session_token,
+            config=Config(
+                max_pool_connections=128,
+                connect_timeout=5,
+                read_timeout=10,
+                retries={"max_attempts": 3, "mode": "standard"},
+            ),
         )
         self.queue_url = self._resolve_queue_url()
 
